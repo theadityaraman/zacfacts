@@ -3,21 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>zac facts</title>
+    <title>Things My Friend Says</title>
     <style>
         body {
             font-family: 'Times New Roman', serif;
-            text-align: center;
+            text-align: left;
             margin: 0;
             padding: 20px;
-            background-color: #ffffff;
+            background-color: #f8f8f8;
+            display: flex;
+            justify-content: flex-start;
         }
-        #content {
+        #container {
             max-width: 600px;
-            margin: auto;
             background: white;
             padding: 20px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            font-size: 1.5em;
+            margin-bottom: 20px;
         }
         .quote {
             font-size: 1.5em;
@@ -38,28 +43,34 @@
     </style>
 </head>
 <body>
-    <h1>zac facts</h1>
-    <div id="content"></div>
-    <button id="login-btn">Admin Login</button>
-    <div id="login-form">
-        <input type="text" id="username" placeholder="Username">
-        <input type="password" id="password" placeholder="Password">
-        <button onclick="login()">Login</button>
-    </div>
-    <div id="post-form">
-        <textarea id="quote" placeholder="Enter quote"></textarea>
-        <input type="text" id="author" placeholder="Author (optional)">
-        <button onclick="postQuote()">Post</button>
-        <button onclick="logout()">Logout</button>
+    <div id="container">
+        <h1>Things My Friend Says</h1>
+        <div id="content"></div>
+        <button id="login-btn">Admin Login</button>
+        <div id="login-form">
+            <input type="text" id="username" placeholder="Username">
+            <input type="password" id="password" placeholder="Password">
+            <button onclick="login()">Login</button>
+        </div>
+        <div id="post-form">
+            <textarea id="quote" placeholder="Enter quote"></textarea>
+            <input type="text" id="author" placeholder="Author (optional)">
+            <input type="file" id="image-upload" accept="image/*">
+            <button onclick="postQuote()">Post</button>
+            <button onclick="logout()">Logout</button>
+        </div>
     </div>
     <script>
         let quotes = JSON.parse(localStorage.getItem('quotes')) || [];
-        const admins = { "admin1": "password123", "admin2": "securepass" }; // Edit this for admin accounts
+        const admins = { "admin1": "password123", "admin2": "securepass", "testuser": "testpass" }; // Added test user
         let loggedIn = false;
 
         function renderQuotes() {
             const contentDiv = document.getElementById('content');
-            contentDiv.innerHTML = quotes.map(q => `<p class="quote">"${q.text}" <span class="author">- ${q.author || 'Anonymous'}</span></p>`).join('');
+            contentDiv.innerHTML = quotes.map(q => {
+                return `<p class="quote">"${q.text}" <span class="author">- ${q.author || 'Anonymous'}</span></p>` + 
+                (q.image ? `<img src="${q.image}" style="max-width:100%; margin-bottom: 10px;">` : '');
+            }).join('');
         }
 
         function login() {
@@ -83,12 +94,26 @@
             if (!loggedIn) return;
             const quoteText = document.getElementById('quote').value;
             const authorText = document.getElementById('author').value;
-            if (quoteText.trim() === '') return;
-            quotes.push({ text: quoteText, author: authorText });
-            localStorage.setItem('quotes', JSON.stringify(quotes));
+            const imageInput = document.getElementById('image-upload').files[0];
+            
+            let imageURL = "";
+            if (imageInput) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    quotes.push({ text: quoteText, author: authorText, image: e.target.result });
+                    localStorage.setItem('quotes', JSON.stringify(quotes));
+                    renderQuotes();
+                };
+                reader.readAsDataURL(imageInput);
+            } else {
+                quotes.push({ text: quoteText, author: authorText, image: "" });
+                localStorage.setItem('quotes', JSON.stringify(quotes));
+                renderQuotes();
+            }
+
             document.getElementById('quote').value = '';
             document.getElementById('author').value = '';
-            renderQuotes();
+            document.getElementById('image-upload').value = '';
         }
 
         document.getElementById('login-btn').addEventListener('click', () => {
