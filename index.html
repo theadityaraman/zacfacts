@@ -3,74 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>zac facts</title>
+    <title>Things My Friend Says</title>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js"></script>
     <style>
         body {
-            font-family: 'Times New Roman', serif;
+            font-family: 'zac facts', serif;
             text-align: left;
             margin: 0;
             padding: 20px;
             background-color: #f8f8f8;
-            display: flex;
-            justify-content: flex-start;
-        }
-        #container {
-            max-width: 600px;
-            background: white;
-            padding: 20px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            color: black;
+            transition: background-color 0.3s, color 0.3s;
         }
         h1 {
-            font-size: 1.5em;
-            margin-bottom: 20px;
+            font-size: 1.2em;
+            margin-bottom: 10px;
         }
         .quote {
-            font-size: 1.5em;
-            margin-bottom: 20px;
+            font-size: 1em;
+            margin-bottom: 10px;
         }
         .author {
             font-style: italic;
+            font-size: 0.9em;
         }
         #login-form, #post-form {
             display: none;
+            font-size: 0.8em;
         }
         button {
-            font-size: 1em;
-            margin: 10px;
-            padding: 10px 15px;
+            font-size: 0.8em;
+            margin: 5px;
+            padding: 5px 10px;
             cursor: pointer;
+        }
+        #night-mode-toggle {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 0.8em;
+            padding: 5px;
+        }
+        .night-mode {
+            background-color: #121212;
+            color: #ffffff;
         }
     </style>
 </head>
 <body>
-    <div id="container">
-        <h1>zac facts</h1>
-        <div id="content"></div>
-        <button id="login-btn">Admin Login</button>
-        <div id="login-form">
-            <input type="text" id="username" placeholder="Username">
-            <input type="password" id="password" placeholder="Password">
-            <button onclick="login()">Login</button>
-        </div>
-        <div id="post-form">
-            <textarea id="quote" placeholder="Enter quote"></textarea>
-            <input type="text" id="author" placeholder="Author (optional)">
-            <input type="file" id="image-upload" accept="image/*">
-            <button onclick="postQuote()">Post</button>
-            <button onclick="logout()">Logout</button>
-        </div>
+    <button id="night-mode-toggle">Night Mode</button>
+    <h1>zac facts</h1>
+    <div id="content"></div>
+    <button id="login-btn" style="font-size: 0.8em;">Admin Login</button>
+    <div id="login-form">
+        <input type="text" id="username" placeholder="Username">
+        <input type="password" id="password" placeholder="Password">
+        <button onclick="login()">Login</button>
+    </div>
+    <div id="post-form">
+        <textarea id="quote" placeholder="Enter quote"></textarea>
+        <input type="text" id="author" placeholder="Author (optional)">
+        <input type="file" id="image-upload" accept="image/*">
+        <button onclick="postQuote()">Post</button>
+        <button onclick="logout()">Logout</button>
     </div>
     <script>
-        let quotes = JSON.parse(localStorage.getItem('quotes')) || [];
-        const admins = { "admin1": "password123", "admin2": "securepass", "testuser": "testpass" }; // Added test user
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        const admins = { "admin1": "password123", "admin2": "securepass", "testuser": "testpass" };
         let loggedIn = false;
 
         function renderQuotes() {
-            const contentDiv = document.getElementById('content');
-            contentDiv.innerHTML = quotes.map(q => {
-                return `<p class="quote">"${q.text}" <span class="author">- ${q.author || 'Anonymous'}</span></p>` + 
-                (q.image ? `<img src="${q.image}" style="max-width:100%; margin-bottom: 10px;">` : '');
-            }).join('');
+            db.collection("quotes").orderBy("timestamp", "desc").onSnapshot(snapshot => {
+                const contentDiv = document.getElementById('content');
+                contentDiv.innerHTML = snapshot.docs.map(doc => {
+                    const q = doc.data();
+                    return `<p class="quote">"${q.text}" <span class="author">- ${q.author || 'Anonymous'}</span></p>` + 
+                    (q.image ? `<img src="${q.image}" style="max-width:100%; margin-bottom: 10px;">` : '');
+                }).join('');
+            });
         }
 
         function login() {
@@ -96,19 +118,26 @@
             const authorText = document.getElementById('author').value;
             const imageInput = document.getElementById('image-upload').files[0];
             
-            let imageURL = "";
+            if (quoteText.trim() === '') return;
+
             if (imageInput) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    quotes.push({ text: quoteText, author: authorText, image: e.target.result });
-                    localStorage.setItem('quotes', JSON.stringify(quotes));
-                    renderQuotes();
+                    db.collection("quotes").add({
+                        text: quoteText,
+                        author: authorText,
+                        image: e.target.result,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    });
                 };
                 reader.readAsDataURL(imageInput);
             } else {
-                quotes.push({ text: quoteText, author: authorText, image: "" });
-                localStorage.setItem('quotes', JSON.stringify(quotes));
-                renderQuotes();
+                db.collection("quotes").add({
+                    text: quoteText,
+                    author: authorText,
+                    image: "",
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
             }
 
             document.getElementById('quote').value = '';
@@ -118,6 +147,10 @@
 
         document.getElementById('login-btn').addEventListener('click', () => {
             document.getElementById('login-form').style.display = 'block';
+        });
+
+        document.getElementById('night-mode-toggle').addEventListener('click', () => {
+            document.body.classList.toggle('night-mode');
         });
 
         renderQuotes();
